@@ -1,0 +1,212 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+library(plyr)
+library(gtsummary)
+library(writexl)
+rm(list = ls())
+load("analytic3.RData")
+table1=analytic3 %>% tbl_summary(statistic = all_continuous() ~ "{mean} {min} {max} {sd}") %>% as_tibble()
+writexl::write_xlsx(table1, "table1.xlsx")
+```
+
+```{r}
+library(viridis)
+library(tidyverse)
+library(ggplot2)
+library(plotly)
+library(rjson)
+rm(list = ls())
+url = 'https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json'
+counties = rjson::fromJSON(file=url)
+g <- list(
+  scope = 'usa',
+  projection = list(type = 'albers usa'),
+  showlakes = TRUE,
+  lakecolor = toRGB('white')
+)
+```
+
+
+```{r}
+load("analytic.RData")
+mapdata=analytic %>% pivot_longer(cols = !FIPS, names_to = c("varnam", "year"), names_sep = "_", values_to = "value")
+
+measurelist = list("unemploymentrate",
+            "uninsuredrate",
+            "childpoverty",
+            "YPLLRate",
+            "FairPoor",
+            "PhysicallyUnhealthyDays",
+            "MentallyUnhealthyDays",
+            "PCPRate",
+            "obesity",
+            "inactivity",
+            "somecollege",
+            "highschool"
+            )
+
+mapnamelist = list("Unemployment rate: percent of population age 16+ unemployed and looking for work",
+                   "Uninsured rate: percent of population < 65 without insurance",
+                   "Child poverty rate: percent of children (under age 18) living in poverty",
+                   "Years of Potential Life Lost Rate",
+                   "Percentage of adults that report fair or poor health",
+                   "Average number of reported physically unhealthy days per month",
+                   "Average number of reported mentally unhealthy days per month",
+                   "Primary care physicians (PCP) rate: (Number of PCP/population)*100,000",
+                   "Obesity rate: percent of adults that report BMI >= 30",
+                   "Physical inactivity: Percent of adults that report no leisure time physical activity",
+                   "Some college: percent adults age 25-44 with some post-secondary education",
+                   "High school graduation rate (cohort or averaged freshman)"
+            )
+
+call.map = function(measurevar, mapnamestr){
+  mapdata2=mapdata %>% filter(mapdata$varnam==measurevar)
+  ma=max(mapdata2$value, na.rm = TRUE)
+  mi=min(mapdata2$value, na.rm = TRUE)
+  plotmap1 = plot_ly(geojson=counties, locations=mapdata2$FIPS, z=mapdata2$value, colorscale="Viridis", zmin=mi, zmax=ma, frame=mapdata2$year, type='choropleth')
+  plotmap2=plotmap1 %>%
+  layout(title=mapnamestr,
+         geo = g) %>% 
+  animation_opts(
+    frame = 100, 
+    transition = 0, 
+    redraw = TRUE) %>%
+  animation_slider(
+    currentvalue=list(prefix="year")) %>%
+  animation_button(
+    x = 1, xanchor = "right", y = 0, yanchor = "bottom")
+library(htmlwidgets)
+saveWidget(plotmap2, paste(measurevar, ".html", sep = ""), selfcontained = F, libdir = "lib")
+return()
+}
+
+res.list_map = mapply(call.map, measurelist, mapnamelist)
+
+```
+
+
+```{r}
+library(viridis)
+library(tidyverse)
+library(usmap)
+library(ggplot2)
+library(plotly)
+library(rjson)
+rm(list = ls())
+load("analytic3FIPS.RData")
+mapdata=analytic3[-c(2:5)]
+mapdata=mapdata %>% rename(fips=FIPS)
+measurelist = list("unemploymenta",
+            "uninsureda",
+            "childpovertya",
+            "PCPRatea",
+            "obesitya",
+            "inactivitya",
+            "somecollegea",
+            "highschoola",
+            "unemploymentb",
+            "uninsuredb",
+            "childpovertyb",
+            "PCPRateb",
+            "obesityb",
+            "inactivityb",
+            "somecollegeb",
+            "highschoolb"
+            )
+mapnamelist = list("Unemployment rate: percent of population age 16+ unemployed and looking for work, intercept",
+                   "Uninsured rate: percent of population < 65 without insurance, intercept",
+                   "Child poverty rate: percent of children (under age 18) living in poverty, intercept",
+                   "Primary care physicians (PCP) rate: (Number of PCP/population)*100,000, intercept",
+                   "Obesity rate: percent of adults that report BMI >= 30, intercept",
+                   "Physical inactivity: Percent of adults that report no leisure time physical activity, intercept",
+                   "Some college: percent adults age 25-44 with some post-secondary education, intercept",
+                   "High school graduation rate (cohort or averaged freshman), intercept",
+                   "Unemployment rate: percent of population age 16+ unemployed and looking for work, slope",
+                   "Uninsured rate: percent of population < 65 without insurance, slope",
+                   "Child poverty rate: percent of children (under age 18) living in poverty, slope",
+                   "Primary care physicians (PCP) rate: (Number of PCP/population)*100,000, slope",
+                   "Obesity rate: percent of adults that report BMI >= 30, slope",
+                   "Physical inactivity: Percent of adults that report no leisure time physical activity, slope",
+                   "Some college: percent adults age 25-44 with some post-secondary education, slope",
+                   "High school graduation rate (cohort or averaged freshman), slope"
+            )
+
+us_states = map_data("state")
+us_counties = map_data("county")
+call.map = function(measurevar, mapname){
+mapplot=plot_usmap(data=mapdata, values=measurevar) +labs(title = mapname) + scale_fill_continuous(type='viridis', name = "", label = scales::comma)
+ggsave(paste(measurevar, ".png", sep = ""), 
+       plot = mapplot,
+       device = NULL,
+       path = getwd() )
+}
+res.list_map = mapply(call.map, measurelist, mapnamelist)
+```
+
+```{r}
+library(viridis)
+library(tidyverse)
+library(ggplot2)
+library(maps)
+library(maptools)
+library(rgeos)
+library(albersusa)
+library(ggalt)
+library(ggthemes)
+library(dplyr)
+library(usmap)
+rm(list = ls())
+load("analytic3FIPS.RData")
+analytic3$fips=analytic3$FIPS
+
+#method 1
+plot_usmap(data=analytic3, values="YPLLdif", color = NA) + scale_fill_gradient2(low = "green", mid = "white", high = "red", na.value = "grey", midpoint = 0) +theme(legend.position = "right")
+
+#method 2
+counties = counties_composite()
+counties_map = fortify(counties, region="fips")
+gg = ggplot() 
+gg = gg + geom_map(data=counties_map, map=counties_map,
+                    aes(x=long, y=lat, map_id=id),
+                    color="#b3b3b3", size=0.15, fill="grey")
+gg = gg +  geom_map(data=analytic3, map=counties_map,
+                    aes(fill=YPLLdif, map_id=fips),
+                    color="#b3b3b3", size=0.15)
+gg = gg + scale_fill_gradient2(  low = "green", mid = "white", high = "red", na.value = "grey", midpoint = 0)
+gg
+
+```
+# ```{r}
+# library(grid)
+# library(gridExtra)
+# 
+# p1=plot_usmap(data=analytic3, values="YPLLdif", color = NA) + scale_fill_gradient2(low = "green", mid = "white", high = "red", na.value = "grey", midpoint = 0)+theme(legend.position = "right")
+# p2=plot_usmap(data=analytic3, values="mentaldif", color = NA) + scale_fill_gradient2(low = "green", mid = "white", high = "red", na.value = "grey", midpoint = 0)+theme(legend.position = "right")
+# p3=plot_usmap(data=analytic3, values="physicaldif", color = NA) + scale_fill_gradient2(low = "green", mid = "white", high = "red", na.value = "grey", midpoint = 0)+theme(legend.position = "right")
+# p4=plot_usmap(data=analytic3, values="fairpoordif", color = NA) + scale_fill_gradient2(low = "green", mid = "white", high = "red", na.value = "grey", midpoint = 0)+theme(legend.position = "right")
+# grid.arrange(grobs = list(p1, p2, p3, p4) , ncol = 2)
+# ```
+# ```{r}
+# measurelist = list("YPLLdif",
+#             "mentaldif",
+#             "physicaldif",
+#             "fairpoordif"
+#             )
+# call.map = function(measurevar){
+#   mapplot=plot_usmap(data=analytic3, values=measurevar, color = NA) + scale_fill_gradient2(low = "green", mid = "white", high = "red", na.value = "grey", midpoint = 0)+theme(legend.position = "right")
+# }
+# 
+# res.list_map = mapply(call.map, measurelist, SIMPLIFY = FALSE)
+# 
+# grid.arrange(grobs = res.list_map , ncol = 2)
+# ```
