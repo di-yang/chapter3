@@ -8,6 +8,7 @@ rm(list = ls())
 library(tidyverse)
 library(gtsummary)
 library(usmap)
+library(readxl)
 options(width = 300)
 ```
 

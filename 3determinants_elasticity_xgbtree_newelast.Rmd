@@ -275,20 +275,22 @@ for (j in 1:length(predvarls)) {
   res.elastplot[[j]] = plot_usmap(regions = "counties",
                                   data = etest,
                                   values = "elast") + scale_fill_gradientn(
+                                    name="elasticity",
                                     colours = c("darkgreen", "green", "white", "red", "darkred"),
                                     na.value = "gray",
                                     breaks = c(-1,-.5, 0, .5, 1),
                                     labels = c(-1,-.5, 0, .5, 1),
-                                    limits = c(-1.2, 1.2)
+                                    limits = c(-1, 1)
                                   ) + ggtitle(predvarls[j])
   print(res.elastplot[[j]])
   res.semi_elastplot[[j]] = plot_usmap(regions = "counties",
                                        data = semi_etest,
                                        values = "semi_elast") + scale_fill_gradientn(
+                                         name="semi-elasticity",
                                          colours = c("darkgreen", "green", "white", "red", "darkred"),
                                          na.value = "gray",
-                                         breaks = c(-1500,-750,-375, 0, 375, 750, 1500),
-                                         labels = c(-1500,-750,-375, 0, 375, 750, 1500),
+                                         breaks = c(-3000,-1500, 0, 1500,3000),
+                                         labels = c(-3000,-1500, 0, 1500,3000),
                                          limits = c(-3000, 3000)
                                        )+ ggtitle(predvarls[j])
   print(res.semi_elastplot[[j]])
