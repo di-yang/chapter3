@@ -15,31 +15,56 @@ options(width = 300)
 ```
 
 ```{r}
+#create a dataset showing which counties are not missing
 load(file = "analyticwrace.Rdata")
 analyticwrace$missing=0
 tomerge=analyticwrace %>% select(FIPS,missing)
+
+#load full sample
 load(file = "analytic2.Rdata")
-analyticmis=merge(analytic2, tomerge, by.x="FIPS", by.y="FIPS", all.x=TRUE)
-analyticmis$missing[is.na(analyticmis$missing)==1]=1
+
+#create racial disparity variable
+disparity=read_csv("./race.csv", col_types = "ccdddd")
+disparity$FIPS=substr(disparity$GEO_ID, 10, 14)
+disparity$blwt=disparity$S1701_C03_010E - disparity$S1701_C03_009E
+disparity$hpnon=disparity$S1701_C03_016E - disparity$S1701_C03_017E
+tomergerace=disparity[c(7:9)]
+#append racial disparity variable
+analyticmis=merge(analytic2, tomergerace, by.x="FIPS", by.y="FIPS", all.x=TRUE)
+
+#append population and population density variables
 popden=read_xlsx("population_density.xlsx")
 analyticmis=merge(analyticmis, popden, by.x="FIPS", by.y="FIPS")
+
+#append missing dummy
+analyticmis=merge(analyticmis, tomerge, by.x="FIPS", by.y="FIPS", all.x=TRUE)
+analyticmis$missing[is.na(analyticmis$missing)==1]=1
+
+#save the data making missing map
 analyticmisFIPS=analyticmis
 analyticmisFIPS$fips=analyticmisFIPS$FIPS
+
+#final preparation before making missing map
 analyticmis=analyticmis %>% select(-FIPS)
-table2=analyticmis %>% tbl_summary(by=missing, missing="no", statistic = all_continuous() ~ "{mean}") %>% 
+table2=analyticmis %>% tbl_summary(by=missing, missing="always", statistic = all_continuous() ~ "{mean}") %>% 
   add_p(everything() ~ "t.test", pvalue_fun = function(x) style_pvalue(x, digits = 2)) %>% 
   as_tibble()
 writexl::write_xlsx(table2, "table2.xlsx")
-analyticmisFIPS$miss_f=as.character(analyticmisFIPS$missing)
-# plot_usmap(regions = "counties", data = analyticmisFIPS, values = "missing") + scale_fill_steps(
-#   low = "black",
-#   high = "white"
-# ) #+ theme(panel.background = element_rect(color = "black", fill = "white"))
 
+```
+
+```{r}
+analyticmisFIPS$miss_f=as.character(analyticmisFIPS$missing)
 plot_usmap(regions = "county", data=analyticmisFIPS, values = "miss_f",color="grey")+ 
   theme(panel.background = element_rect(colour = "black")) +
   scale_fill_manual(values = c(`0` = "white", `1` = "black"), name = "", labels=c("not missing","missing")) + 
   theme(legend.position = "right")
+```
 
+```{r}
+# plot_usmap(regions = "counties", data = analyticmisFIPS, values = "missing") + scale_fill_steps(
+#   low = "black",
+#   high = "white"
+# ) #+ theme(panel.background = element_rect(color = "black", fill = "white"))
 ```
 
